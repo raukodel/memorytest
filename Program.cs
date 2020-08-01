@@ -1,42 +1,54 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Runtime.InteropServices;
+using System.Diagnostics;
 
 namespace MemoryTest
 {
     public class Program
     {
         [DllImport("kernel32.dll")]
-        public static extern IntPtr OpenProcess(int dwDesiredAccess, bool bInheritHandle, int dwProcessId);
+        public static extern bool ReadProcessMemory(IntPtr process, IntPtr baseAddress, [Out] byte[] buffer, int size, out IntPtr bytesRead);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern bool WriteProcessMemory(IntPtr process, IntPtr baseAddress, byte[] buffer, int size, ref int bytesWritten);
 
-        [DllImport("kernel32.dll")]
-        public static extern bool ReadProcessMemory(int hProcess, int lpBaseAddress, byte[] lpBuffer, int dwSize, ref int lpNumberOfBytesRead);
-
-        System.Timers.Timer gameCheck;
-        IntPtr foundAdress = IntPtr.Zero;
-        // Process gameProcess;
+        public static IntPtr foundAddress = IntPtr.Zero;
+        public static Process gameProcess;
 
         public static long ReadInt64(IntPtr process, IntPtr baseAddress)
         {
             var buffer = new byte[8];
             IntPtr byteRead;
-            // ReadProcessMemory(process, baseAddress, buffer, 8, byteRead);
+            ReadProcessMemory(process, baseAddress, buffer, 8, out byteRead);
+            return BitConverter.ToInt64(buffer, 0);
         }
 
-        private void CheckProcess()
+        public static void CheckProcess()
         {
-            gameProcess = Process.GetProcessesByName("Crysis2").FirstOrDefault();
-
+            gameProcess = Process.GetProcessesByName("Spotify").FirstOrDefault();
+            
             if(gameProcess != null) {
-                gameCheck.Stop();
                 var gameModule = gameProcess.MainModule;
                 var baseAddress = gameModule.BaseAddress.ToInt64() + 0x0152ED0C;
                 var offsets = new [] { 0x2E8 };
 
-                var realAddress = GetRealAddress(gameProcess.Handle, (IntPtr)baseAddress, offsets);
-                foundAddress = (IntPtr)realAddress;
+                var realAddress = Program.GetRealAddress(gameProcess.Handle, (IntPtr)baseAddress, offsets);
+                Program.foundAddress = (IntPtr)realAddress;
+
+                var array = BitConverter.GetBytes(100);
+                int bytesWritten;
+                //WriteProcessMemory(gameProcess.Handle, Program.foundAddress, array, (uint)array.Length, out bytesWritten);
 
                 string Address = realAddress.ToString("X");
 
-                string debugInfo = "Address: " + ReadInt32(gameProcess.Handle, (IntPtr)realAddress).ToString();
+                Console.WriteLine(gameProcess.ToString());
+                Console.WriteLine(gameModule.ToString());
+                Console.WriteLine(baseAddress.ToString());
+                Console.WriteLine(foundAddress.ToString());
+                Console.WriteLine(Address);
             }
         }
 
@@ -53,7 +65,7 @@ namespace MemoryTest
 
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            Program.CheckProcess();
         }
     }
 }
